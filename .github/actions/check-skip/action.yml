@@ -12,6 +12,9 @@ outputs:
 runs:
   using: "composite"
   steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: true
     - name: Get latest workflow info
       id: latest-workflow
       env:
@@ -22,13 +25,10 @@ runs:
           # get all previus workflows for "test_full.yml" file and current branch
           _workflows=$(curl -H "Accept: application/vnd.github.v3+json" "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/workflows/pr.yml/runs?branch=$CURRENT_BRANCH")
           # clear unsupported characters
-          echo "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/workflows/pr.yml/runs?branch=$CURRENT_BRANCH"
-          echo "_workflows=$_workflows"
           _workflows_safe=$(echo "$_workflows" | tr "\r" " " | tr "\n" " " | tr "\t" " ")
-          echo "_workflows_safe=$_workflows_safe"
           # select previous (current is with index 0) workflow
           _last_workflow=$(echo "$_workflows_safe" | jq -c '.workflow_runs[1]')
-          echo "_last_workflow=$_last_workflow"
+          echo "$_last_workflow"
         }
         # get last workflow
         workflow=$(get_last_workflow)
@@ -46,30 +46,6 @@ runs:
         fi
         echo "workflow=$workflow" >> $GITHUB_OUTPUT
         echo "workflow=$workflow"
-    - name: Get latest workflow v2
-      shell: bash
-      run: |
-        #!/bin/bash
-        # Set the workflow file name
-        workflow_file_name=".github/workflows/pr.yml"
-
-        # Get the branch name
-        branch_name=${{ github.head_ref }}
-
-        # Get the list of workflows associated with the branch and workflow file
-        workflows=$(curl -H "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/runs?event=pull_request&per_page=100" \
-          | jq -r ".workflow_runs[] | select(.head_branch == \"$branch_name\" and .workflow.path == \"$workflow_file_name\") | [.id, .status, .head_branch, .workflow.name] | @tsv")
-
-        # Parse the workflows and extract the status of the last workflow
-        last_workflow=$(echo "$workflows" | head -n 1)
-        workflow_id=$(echo "$last_workflow" | cut -f1)
-        workflow_status=$(echo "$last_workflow" | cut -f2)
-
-        # Print the status and file name of the last workflow
-        echo "Last workflow for workflow file $workflow_file_name and branch $branch_name:"
-        echo "Workflow status: $workflow_status"
-        echo "Workflow file name: $workflow_file_name"
-
     - name: Check to see if there is any new commit
       id: new-commit
       env:
