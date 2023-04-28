@@ -9,9 +9,6 @@ outputs:
   skip-func-tests:
     description: "Whether to skip func test"
     value: ${{ steps.skip-func-tests.outputs.skip }}
-  skip-lint-unit-tests:
-    description: "Whether to skip lint and unit test"
-    value: ${{ steps.skip-lint-unit-tests.outputs.skip }}
 runs:
   using: "composite"
   steps:
@@ -23,7 +20,7 @@ runs:
       run: |
         function get_last_workflow() {
           # get all previus workflows for "test_full.yml" file and current branch
-          _workflows=$(curl -H "Accept: application/vnd.github.v3+json" "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/workflows/tests_full.yml/runs?branch=$CURRENT_BRANCH")
+          _workflows=$(curl -H "Accept: application/vnd.github.v3+json" "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/workflows/pr.yml/runs?branch=$CURRENT_BRANCH")
           # clear unsupported characters
           _workflows_safe=$(echo "$_workflows" | tr "\r" " " | tr "\n" " " | tr "\t" " ")
           # select previous (current is with index 0) workflow
@@ -62,7 +59,7 @@ runs:
           echo "There is no new commit."
         fi
     - name: Track changed files in the PR for functional tests
-      id: skip-func-tests
+      id: check-files-changes
       shell: bash
       run: |
         git remote add upstream $GITHUB_SERVER_URL/$GITHUB_REPOSITORY
@@ -77,10 +74,10 @@ runs:
         fi
         echo $DEFAULT_BRANCH
 
-        skip=0
-        git diff --name-only $DEFAULT_BRANCH | grep -qE "^($SRC_DIR/|tests/functional/)" || skip=1
-        echo "skip=$skip" >> $GITHUB_OUTPUT
-        if [ $skip == 0 ]
+        changed=1
+        git diff --name-only $DEFAULT_BRANCH | grep -qE "^($SRC_DIR/|tests/functional/)" || changed=0
+        echo "changed=$changed" >> $GITHUB_OUTPUT
+        if [ $changed == 1 ]
         then
           echo "The code base or function test code has changed."
         else
@@ -89,17 +86,18 @@ runs:
       env:
         SRC_DIR: ${{inputs.src-dir}}
     - name: Skip lint and unit tests
-      id: skip-lint-unit-tests
+      id: skip-func-tests
       env:
         WORKFLOW_STATUS: ${{ fromJson(steps.latest-workflow.outputs.workflow).status }}
         WORKFLOW_CONCLUSION: ${{ fromJson(steps.latest-workflow.outputs.workflow).conclusion }}
         NEW_COMMIT: ${{ steps.new-commit.outputs.new }}
+        CORE_FILE_CHANGED: ${{ steps.check-files-changes.outputs.changed }}
       shell: bash
       run: |
-        if [[ $WORKFLOW_STATUS == 'completed' && $WORKFLOW_CONCLUSION == 'success' && $NEW_COMMIT == 0 ]]; then
-          echo "Lint, Unit tests, Docs and Build will be skipped"
+        if [[ $WORKFLOW_STATUS == 'completed' && $WORKFLOW_CONCLUSION == 'success' && $NEW_COMMIT == 0 && CORE_FILE_CHANGED == 0]]; then
+          echo "Functional tests will be skipped"
           echo "skip=1" >> $GITHUB_OUTPUT
         else
-          echo "Lint, Unit tests, Docs and Build will be run"
+          echo "Functional tests will be run"
           echo "skip=0" >> $GITHUB_OUTPUT
         fi
