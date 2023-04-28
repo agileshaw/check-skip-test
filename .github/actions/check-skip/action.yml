@@ -5,9 +5,20 @@ inputs:
     required: false
     type: string
     default: "src"
+  check-lint-unit-skip:
+    required: false
+    type: boolean
+    default: false
+  check-func-skip:
+    required: false
+    type: boolean
+    default: false
 outputs:
+  skip-lint-unit-tests:
+    description: "Whether to skip lint and unit tests"
+    value: ${{ steps.skip-lint-unit-tests.outputs.skip }}
   skip-func-tests:
-    description: "Whether to skip func test"
+    description: "Whether to skip functional tests"
     value: ${{ steps.skip-func-tests.outputs.skip }}
 runs:
   using: "composite"
@@ -43,7 +54,7 @@ runs:
         fi
         echo "workflow=$workflow" >> $GITHUB_OUTPUT
         echo "workflow=$workflow"
-    - name: Check to see if there is any new commit
+    - name: Check to see if there is any new commits
       id: new-commit
       env:
         LATEST_HEAD_SHA: ${{ fromJson(steps.latest-workflow.outputs.workflow).head_sha }}
@@ -79,23 +90,48 @@ runs:
         echo "changed=$changed" >> $GITHUB_OUTPUT
         if [ $changed == 1 ]
         then
-          echo "The code base or function test code has changed."
+          echo "The code base or functional test code has changed."
         else
-          echo "No changes were found."
+          echo "No changes in code base or functional test code were found."
         fi
       env:
         SRC_DIR: ${{inputs.src-dir}}
-    - name: Skip lint and unit tests
+    - name: Check whether to skip lint and unit tests
+      id: skip-lint-unit-tests
+      env:
+        WORKFLOW_STATUS: ${{ fromJson(steps.latest-workflow.outputs.workflow).status }}
+        WORKFLOW_CONCLUSION: ${{ fromJson(steps.latest-workflow.outputs.workflow).conclusion }}
+        WORKFLOW_URL: ${{ fromJson(steps.latest-workflow.outputs.workflow).html_url }}
+        NEW_COMMIT: ${{ steps.new-commit.outputs.new }}
+      if: ${{inputs.check-lint-unit-skip}} == true
+      shell: bash
+      run: |
+        if [[ $WORKFLOW_STATUS == 'completed' && $WORKFLOW_CONCLUSION == 'success' && $NEW_COMMIT == 0 ]]; then
+            echo "No new commits since last previous workflow run. Lint and unit tests will be skipped."
+            echo "Previous run result can be found at $WORKFLOW_URL"
+            echo "skip=1" >> $GITHUB_OUTPUT
+        else
+          echo "Lint and unit tests will be run"
+          echo "skip=0" >> $GITHUB_OUTPUT
+        fi
+    - name: Check whether to skip functional tests
       id: skip-func-tests
       env:
         WORKFLOW_STATUS: ${{ fromJson(steps.latest-workflow.outputs.workflow).status }}
         WORKFLOW_CONCLUSION: ${{ fromJson(steps.latest-workflow.outputs.workflow).conclusion }}
+        WORKFLOW_URL: ${{ fromJson(steps.latest-workflow.outputs.workflow).html_url }}
         NEW_COMMIT: ${{ steps.new-commit.outputs.new }}
         CORE_FILE_CHANGED: ${{ steps.check-files-changes.outputs.changed }}
+      if: ${{inputs.check-func-skip}} == true
       shell: bash
       run: |
-        if [[ $WORKFLOW_STATUS == 'completed' && $WORKFLOW_CONCLUSION == 'success' && $NEW_COMMIT == 0 && $CORE_FILE_CHANGED ]]; then
-          echo "Functional tests will be skipped"
+        if [[ $WORKFLOW_STATUS == 'completed' && $WORKFLOW_CONCLUSION == 'success' && $NEW_COMMIT == 0 ]]; then
+          echo "No new commits since last previous workflow run. Functioal tests will be skipped."
+          echo "Previous run result can be found at $WORKFLOW_URL"
+          echo "skip=1" >> $GITHUB_OUTPUT
+        elif [[ $WORKFLOW_STATUS == 'completed' && $WORKFLOW_CONCLUSION == 'success' && $CORE_FILE_CHANGED == 0 ]]; then
+          echo "New commits detected but no changes in code base or functional test code comparing to the upstream branch."
+          echo "Functioal tests will be skipped."
           echo "skip=1" >> $GITHUB_OUTPUT
         else
           echo "Functional tests will be run"
