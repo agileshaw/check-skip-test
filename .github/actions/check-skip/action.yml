@@ -22,10 +22,13 @@ runs:
           # get all previus workflows for "test_full.yml" file and current branch
           _workflows=$(curl -H "Accept: application/vnd.github.v3+json" "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/workflows/pr.yml/runs?branch=$CURRENT_BRANCH")
           # clear unsupported characters
+          echo "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/workflows/pr.yml/runs?branch=$CURRENT_BRANCH"
+          echo "_workflows=$_workflows"
           _workflows_safe=$(echo "$_workflows" | tr "\r" " " | tr "\n" " " | tr "\t" " ")
+          echo "_workflows_safe=$_workflows_safe"
           # select previous (current is with index 0) workflow
           _last_workflow=$(echo "$_workflows_safe" | jq -c '.workflow_runs[1]')
-          echo "$_last_workflow"
+          echo "_last_workflow=$_last_workflow"
         }
         # get last workflow
         workflow=$(get_last_workflow)
