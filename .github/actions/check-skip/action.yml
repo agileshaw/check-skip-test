@@ -23,7 +23,7 @@ runs:
       run: |
         function get_last_workflow() {
           # get all previus workflows for "test_full.yml" file and current branch
-          _workflows=$(curl -H "Accept: application/vnd.github.v3+json" "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/workflows/pr.yml/runs?branch=$CURRENT_BRANCH")
+          _workflows=$(curl -H "Accept: application/vnd.github.v3+json" "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/workflows/pr.yaml/runs?branch=$CURRENT_BRANCH")
           # clear unsupported characters
           _workflows_safe=$(echo "$_workflows" | tr "\r" " " | tr "\n" " " | tr "\t" " ")
           # select previous (current is with index 0) workflow
