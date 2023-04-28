@@ -12,9 +12,6 @@ outputs:
 runs:
   using: "composite"
   steps:
-    # - uses: actions/checkout@v3
-    #   with:
-    #     submodules: true
     - name: Get latest workflow info
       id: latest-workflow
       env:
@@ -97,7 +94,7 @@ runs:
         CORE_FILE_CHANGED: ${{ steps.check-files-changes.outputs.changed }}
       shell: bash
       run: |
-        if [[ $WORKFLOW_STATUS == 'completed' && $WORKFLOW_CONCLUSION == 'success' && $NEW_COMMIT == 0]]; then
+        if [[ $WORKFLOW_STATUS == 'completed' && $WORKFLOW_CONCLUSION == 'success' && $NEW_COMMIT == 0 && $CORE_FILE_CHANGED ]]; then
           echo "Functional tests will be skipped"
           echo "skip=1" >> $GITHUB_OUTPUT
         else
