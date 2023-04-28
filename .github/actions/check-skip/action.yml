@@ -54,7 +54,7 @@ runs:
         branch_name=${{ github.head_ref }}
 
         # Get the list of workflows associated with the branch and workflow file
-        workflows=$(curl -H "${{ github.api_url }}/repos/${{ github.repository }}/actions/runs?event=pull_request&per_page=100" \
+        workflows=$(curl -H "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/runs?event=pull_request&per_page=100" \
           | jq -r ".workflow_runs[] | select(.head_branch == \"$branch_name\" and .workflow.path == \"$workflow_file_name\") | [.id, .status, .head_branch, .workflow.name] | @tsv")
 
         # Parse the workflows and extract the status of the last workflow
